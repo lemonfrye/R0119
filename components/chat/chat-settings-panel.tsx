@@ -415,6 +415,7 @@ export function ChatSettingsPanel({
     const [editingCSS, setEditingCSS] = useState(false);
     const [editingImagePrompt, setEditingImagePrompt] = useState(false);
     const [customImagePromptDraft, setCustomImagePromptDraft] = useState(session.customImagePrompt || "");
+    const [customNegativePromptDraft, setCustomNegativePromptDraft] = useState(session.customNegativePrompt || "");
     const [showScreenEffects, setShowScreenEffects] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     // TA 的电脑：翻看角色云端电脑（连接了角色电脑才显示入口）
@@ -1174,7 +1175,11 @@ export function ChatSettingsPanel({
                 {/* Advanced */}
                 <div className="menu-group">
                     <KeyboardAutoSendDebounceItem sessionId={session.id} />
-                    <button className="menu-item" onClick={() => { setCustomImagePromptDraft(session.customImagePrompt || ""); setEditingImagePrompt(true); }}>
+                    <button className="menu-item" onClick={() => { 
+                        setCustomImagePromptDraft(session.customImagePrompt || ""); 
+                        setCustomNegativePromptDraft(session.customNegativePrompt || "");
+                        setEditingImagePrompt(true); 
+                    }}>
                         <ChatInfoIcon icon={ImageIcon} color={BINDING_ACCENTS.preset} />
                         <div className="menu-label-group">
                             <span className="menu-label">独立生图提示词</span>
@@ -1522,15 +1527,26 @@ export function ChatSettingsPanel({
                         </p>
                         <textarea
                             className="ui-textarea"
-                            style={{ minHeight: 120, resize: "none" }}
+                            style={{ minHeight: 90, resize: "none" }}
                             value={customImagePromptDraft}
                             onChange={e => setCustomImagePromptDraft(e.target.value)}
-                            placeholder="例如：1girl, blonde hair, red eyes, school uniform..."
+                            placeholder="正面特征，例如：1girl, blonde hair..."
                         />
-                        <div className="flex gap-3 w-full mt-3">
+                        <div className="ts-13 text-[var(--c-icon)] mt-3 mb-1 text-left ml-1">独立负面提示词</div>
+                        <textarea
+                            className="ui-textarea"
+                            style={{ minHeight: 60, resize: "none" }}
+                            value={customNegativePromptDraft}
+                            onChange={e => setCustomNegativePromptDraft(e.target.value)}
+                            placeholder="负面特征，例如：nsfw, worst quality..."
+                        />
+                        <div className="flex gap-3 w-full mt-4">
                             <button onClick={() => setEditingImagePrompt(false)} className="ui-btn ui-btn-ghost flex-1">取消</button>
                             <button onClick={() => {
-                                updateSession({ customImagePrompt: customImagePromptDraft });
+                                updateSession({ 
+                                    customImagePrompt: customImagePromptDraft,
+                                    customNegativePrompt: customNegativePromptDraft
+                                });
                                 setEditingImagePrompt(false);
                             }} className="ui-btn ui-btn-success flex-1">保存</button>
                         </div>

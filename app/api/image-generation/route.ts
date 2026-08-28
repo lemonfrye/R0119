@@ -8,6 +8,7 @@ type ImageGenerationRequest = {
   baseUrl?: string;
   model?: string;
   prompt?: string;
+  negativePrompt?: string;
   size?: string;
   quality?: string;
   referenceImageDataUrl?: string;
@@ -123,6 +124,7 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
     const baseUrl = input.baseUrl?.trim();
     const model = input.model?.trim();
     const prompt = input.prompt?.trim();
+    const negativePrompt = input.negativePrompt?.trim();
     const hasReference = Boolean(input.referenceImageDataUrl?.trim());
 
     if (!apiKey) return { status: 400, body: { error: "缺少 API Key" } };
@@ -138,25 +140,26 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
     const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}` };
     let body: BodyInit;
 
-    if (isNovelAI) {
-      headers["Content-Type"] = "application/json";
-      const width = input.size?.split("x")[0] ? parseInt(input.size.split("x")[0]) : 1024;
-      const height = input.size?.split("x")[1] ? parseInt(input.size.split("x")[1]) : 1024;
+    headers["Content-Type"] = "application/json";
+    const isAuto = !input.size || input.size === "auto";
+    const width = isAuto ? 1024 : parseInt(input.size.split("x")[0], 10);
+    const height = isAuto ? 1024 : parseInt(input.size.split("x")[1], 10);
 
+    if (isNovelAI) {
       if (hasReference) {
         const b64 = cleanBase64(input.referenceImageDataUrl || "").b64;
         body = JSON.stringify({
           input: prompt,
           model,
           action: "img2img",
-          parameters: { width, height, image: b64, n_samples: 1, strength: 0.7, noise: 0 }
+          parameters: { width, height, steps: 28, image: b64, n_samples: 1, strength: 0.7, noise: 0, negative_prompt: negativePrompt }
         });
       } else {
         body = JSON.stringify({
           input: prompt,
           model,
           action: "generate",
-          parameters: { width, height, n_samples: 1 }
+          parameters: { width, height, steps: 28, n_samples: 1, negative_prompt: negativePrompt }
         });
       }
     } else if (hasReference) {
@@ -165,15 +168,19 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
       const form = new FormData();
       form.set("model", model);
       form.set("prompt", prompt);
+      if (negativePrompt) form.set("negative_prompt", negativePrompt);
       if (input.size && input.size !== "auto") form.set("size", input.size);
       if (input.quality && input.quality !== "auto") form.set("quality", input.quality);
       form.append("image", converted.blob, `reference.${converted.mimeType.split("/")[1] || "png"}`);
       body = form;
     } else {
-      headers["Content-Type"] = "application/json";
       body = JSON.stringify({
         model,
         prompt,
+        negative_prompt: negativePrompt || undefined,
+        width,
+        height,
+        steps: 28,
         ...(input.size && input.size !== "auto" ? { size: input.size } : {}),
         ...(input.quality && input.quality !== "auto" ? { quality: input.quality } : {}),
       });

@@ -335,12 +335,13 @@ export const IMAGE_GEN_PROXY_URL = (process.env.NEXT_PUBLIC_IMAGE_GEN_PROXY_URL 
 async function generateImageDirect(params: {
   settings: ImageGenerationSettings;
   prompt: string;
+  negativePrompt?: string;
   referenceImageDataUrl: string | null;
   signal?: AbortSignal;
   /** 走通用代理:请求发往代理地址,真实上游放进 x-upstream-base-url 头 */
   proxyBaseUrl?: string;
 }): Promise<ImageGenerationApiResponse> {
-  const { settings, prompt, referenceImageDataUrl, signal, proxyBaseUrl } = params;
+  const { settings, prompt, negativePrompt, referenceImageDataUrl, signal, proxyBaseUrl } = params;
   throwIfAborted(signal);
   const hasReference = Boolean(referenceImageDataUrl);
   const isNovelAI = (proxyBaseUrl || settings.baseUrl).includes("novelai.net") || settings.model.includes("nai-diffusion") || settings.model.includes("novelai");
@@ -428,6 +429,7 @@ const directCorsFailedBaseUrls = new Set<string>();
 async function generateImageViaServerOrProxy(params: {
   settings: ImageGenerationSettings;
   prompt: string;
+  negativePrompt?: string;
   referenceImageDataUrl: string | null;
   signal?: AbortSignal;
 }): Promise<ImageGenerationApiResponse> {
@@ -461,10 +463,11 @@ async function generateImageViaServerOrProxy(params: {
 async function generateImageViaServer(params: {
   settings: ImageGenerationSettings;
   prompt: string;
+  negativePrompt?: string;
   referenceImageDataUrl: string | null;
   signal?: AbortSignal;
 }): Promise<ImageGenerationApiResponse> {
-  const { settings, prompt, referenceImageDataUrl, signal } = params;
+  const { settings, prompt, negativePrompt, referenceImageDataUrl, signal } = params;
   throwIfAborted(signal);
   // 防"无限卡住":函数被平台中途击杀时流可能既不关闭也不报错。
   // 总超时 180s + 断流检测(心跳每 3s 一个字节,超过 25s 没有任何字节视为断流)。
@@ -553,6 +556,7 @@ export async function generateImageFromConfiguredApi(params: {
   settings?: ImageGenerationSettings;
   signal?: AbortSignal;
   customImagePrompt?: string;
+  customNegativePrompt?: string;
 }): Promise<ImageGenerationResult | null> {
   const settings = params.settings ?? loadImageGenerationSettings();
   if (!settings.enabled) return null;
@@ -570,10 +574,11 @@ export async function generateImageFromConfiguredApi(params: {
     : null;
   throwIfAborted(params.signal);
   const prompt = mergePrompt(mergePrompt(description, params.customImagePrompt || ""), settings.extraPrompt);
+  const negativePrompt = mergePrompt(params.customNegativePrompt || "", settings.negativePrompt || "");
 
   const data = settings.requestMode === "direct"
-    ? await generateImageDirect({ settings, prompt, referenceImageDataUrl, signal: params.signal })
-    : await generateImageViaServerOrProxy({ settings, prompt, referenceImageDataUrl, signal: params.signal });
+    ? await generateImageDirect({ settings, prompt, negativePrompt, referenceImageDataUrl, signal: params.signal })
+    : await generateImageViaServerOrProxy({ settings, prompt, negativePrompt, referenceImageDataUrl, signal: params.signal });
 
   throwIfAborted(params.signal);
   const mimeType = data.mimeType || "image/png";

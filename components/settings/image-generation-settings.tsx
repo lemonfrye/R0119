@@ -322,6 +322,16 @@ export function ImageGenerationSettings() {
                     </p>
                 </div>
 
+                <div className="flex flex-col gap-1">
+                    <label className="menu-desc ml-1">负面提示词 (Negative Prompt)</label>
+                    <Textarea
+                        value={settings.negativePrompt ?? ""}
+                        onChange={(event) => updateSettings({ negativePrompt: event.target.value })}
+                        placeholder="NovelAI 等模型专用，描述你不希望画面中出现的内容。"
+                        rows={3}
+                    />
+                </div>
+
                 <div className="flex gap-3">
                     <button
                         type="button"

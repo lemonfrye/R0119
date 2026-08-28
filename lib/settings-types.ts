@@ -170,6 +170,7 @@ export type ImageGenerationSettings = {
     size: string;
     quality: string;
     extraPrompt: string;
+    negativePrompt?: string;
     characterReferences: Record<string, {
         assetId: string;
         updatedAt: number;
