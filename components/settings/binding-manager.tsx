@@ -400,7 +400,7 @@ export function BindingManager() {
     const inheritLabel = getInheritLabel();
     const appOverrideEntries = [
         ...CONTENT_APP_IDS
-            .filter(appId => appIconId(appId) in ICONS)
+            .filter(appId => appIconId(appId) === "cocreate" || appIconId(appId) in ICONS)
             .map(appId => ({
                 id: appId as string,
                 label: CONTENT_APP_LABELS[appId],
