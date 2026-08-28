@@ -5,10 +5,10 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.webkit.CookieManager
@@ -59,11 +59,8 @@ class PushService : Service() {
     private var stopped = false
     private var msgSeq = 2
     private var notifId = 100
-
-    private val largeIcon: Bitmap? by lazy {
-        runCatching { BitmapFactory.decodeResource(resources, R.drawable.ic_stat) }.getOrNull()
-    }
     private var shellSubRegistered = false
+    private val largeIcon: Bitmap? by lazy { runCatching { BitmapFactory.decodeResource(resources, R.drawable.ic_stat) }.getOrNull() }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
