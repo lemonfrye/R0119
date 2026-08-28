@@ -5,6 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -58,6 +60,7 @@ class PushService : Service() {
     private var msgSeq = 2
     private var notifId = 100
     private var shellSubRegistered = false
+    private val largeIcon: Bitmap? by lazy { runCatching { BitmapFactory.decodeResource(resources, R.drawable.ic_stat) }.getOrNull() }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -276,6 +279,7 @@ class PushService : Service() {
     private fun buildKeepAliveNotification(text: String): Notification =
         NotificationCompat.Builder(this, CH_KEEPALIVE)
             .setSmallIcon(R.drawable.ic_stat)
+            .setLargeIcon(largeIcon)
             .setContentTitle("FLOAT")
             .setContentText(text)
             .setOngoing(true)
@@ -314,6 +318,7 @@ class PushService : Service() {
         )
         val notification = NotificationCompat.Builder(this, CH_CALLS)
             .setSmallIcon(R.drawable.ic_stat)
+            .setLargeIcon(largeIcon)
             .setContentTitle(characterName)
             .setContentText("语音来电…")
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -337,6 +342,7 @@ class PushService : Service() {
     private fun showMissedCallNotification(characterName: String) {
         val notification = NotificationCompat.Builder(this, CH_MESSAGES)
             .setSmallIcon(R.drawable.ic_stat)
+            .setLargeIcon(largeIcon)
             .setContentTitle(characterName)
             .setContentText("未接来电")
             .setAutoCancel(true)
@@ -349,6 +355,7 @@ class PushService : Service() {
     private fun showMessageNotification(title: String, body: String) {
         val notification = NotificationCompat.Builder(this, CH_MESSAGES)
             .setSmallIcon(R.drawable.ic_stat)
+            .setLargeIcon(largeIcon)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
