@@ -145,24 +145,7 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
     const width = isAuto ? 1024 : parseInt(input.size.split("x")[0], 10);
     const height = isAuto ? 1024 : parseInt(input.size.split("x")[1], 10);
 
-    if (isNovelAI) {
-      if (hasReference) {
-        const b64 = cleanBase64(input.referenceImageDataUrl || "").b64;
-        body = JSON.stringify({
-          input: prompt,
-          model,
-          action: "img2img",
-          parameters: { width, height, steps: 28, image: b64, n_samples: 1, strength: 0.7, noise: 0, negative_prompt: negativePrompt }
-        });
-      } else {
-        body = JSON.stringify({
-          input: prompt,
-          model,
-          action: "generate",
-          parameters: { width, height, steps: 28, n_samples: 1, negative_prompt: negativePrompt }
-        });
-      }
-    } else if (hasReference) {
+    if (hasReference && !isNovelAI) {
       const converted = dataUrlToBlob(input.referenceImageDataUrl || "");
       if (!converted) return { status: 400, body: { error: "参考图格式无效" } };
       const form = new FormData();
@@ -174,7 +157,7 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
       form.append("image", converted.blob, `reference.${converted.mimeType.split("/")[1] || "png"}`);
       body = form;
     } else {
-      body = JSON.stringify({
+      const bodyObj: Record<string, any> = {
         model,
         prompt,
         negative_prompt: negativePrompt || undefined,
@@ -183,7 +166,25 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
         steps: 28,
         ...(input.size && input.size !== "auto" ? { size: input.size } : {}),
         ...(input.quality && input.quality !== "auto" ? { quality: input.quality } : {}),
-      });
+      };
+
+      if (isNovelAI) {
+        bodyObj.action = hasReference ? "img2img" : "generate";
+        bodyObj.input = prompt;
+        bodyObj.parameters = {
+          width,
+          height,
+          steps: 28,
+          n_samples: 1,
+          negative_prompt: negativePrompt || undefined,
+          ...(hasReference ? {
+            image: cleanBase64(input.referenceImageDataUrl || "").b64,
+            strength: 0.7,
+            noise: 0
+          } : {})
+        };
+      }
+      body = JSON.stringify(bodyObj);
     }
 
     const controller = new AbortController();

@@ -353,45 +353,51 @@ async function generateImageDirect(params: {
   if (proxyBaseUrl) headers["x-upstream-base-url"] = normalizeBaseUrl(settings.baseUrl);
   let body: BodyInit;
 
-  if (isNovelAI) {
-    headers["Content-Type"] = "application/json";
-    const width = settings.size?.split("x")[0] ? parseInt(settings.size.split("x")[0]) : 1024;
-    const height = settings.size?.split("x")[1] ? parseInt(settings.size.split("x")[1]) : 1024;
+  const isAuto = !settings.size || settings.size === "auto";
+  const width = isAuto ? 1024 : parseInt(settings.size.split("x")[0], 10);
+  const height = isAuto ? 1024 : parseInt(settings.size.split("x")[1], 10);
 
-    if (hasReference) {
-      const b64 = cleanBase64(referenceImageDataUrl || "").b64;
-      body = JSON.stringify({
-        input: prompt,
-        model: settings.model,
-        action: "img2img",
-        parameters: { width, height, image: b64, n_samples: 1, strength: 0.7, noise: 0 }
-      });
-    } else {
-      body = JSON.stringify({
-        input: prompt,
-        model: settings.model,
-        action: "generate",
-        parameters: { width, height, n_samples: 1 }
-      });
-    }
-  } else if (hasReference) {
+  if (hasReference && !isNovelAI) {
     const converted = dataUrlToBlob(referenceImageDataUrl || "");
     if (!converted) throw new Error("参考图格式无效");
     const form = new FormData();
     form.set("model", settings.model);
     form.set("prompt", prompt);
+    if (negativePrompt) form.set("negative_prompt", negativePrompt);
     if (settings.size && settings.size !== "auto") form.set("size", settings.size);
     if (settings.quality && settings.quality !== "auto") form.set("quality", settings.quality);
     form.append("image", converted.blob, `reference.${imageExtension(converted.mimeType)}`);
     body = form;
   } else {
     headers["Content-Type"] = "application/json";
-    body = JSON.stringify({
+    const bodyObj: Record<string, any> = {
       model: settings.model,
       prompt,
+      negative_prompt: negativePrompt || undefined,
+      width,
+      height,
+      steps: 28,
       ...(settings.size && settings.size !== "auto" ? { size: settings.size } : {}),
       ...(settings.quality && settings.quality !== "auto" ? { quality: settings.quality } : {}),
-    });
+    };
+
+    if (isNovelAI) {
+      bodyObj.action = hasReference ? "img2img" : "generate";
+      bodyObj.input = prompt;
+      bodyObj.parameters = {
+        width,
+        height,
+        steps: 28,
+        n_samples: 1,
+        negative_prompt: negativePrompt || undefined,
+        ...(hasReference ? {
+          image: cleanBase64(referenceImageDataUrl || "").b64,
+          strength: 0.7,
+          noise: 0
+        } : {})
+      };
+    }
+    body = JSON.stringify(bodyObj);
   }
 
   // 总超时 360s,外部 signal 联动;防止上游悬挂导致界面永久转圈。
