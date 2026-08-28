@@ -188,10 +188,10 @@ export type ContentAppId =
     | "moments" | "group_chat" | "vn" | "adventure";
 
 export const CONTENT_APP_IDS: ContentAppId[] = [
-    "chat", "diary", "music", "reading",
+    "chat", "group_chat", "moments", "diary", "music", "reading",
     "cocreate", "story", "game", "xiaohongshu", "dwelling",
     "checkphone", "shopping", "calendar", "interview_magazine",
-    "moments", "group_chat", "vn", "adventure"
+    "vn", "adventure"
 ];
 
 export const CONTENT_APP_LABELS: Record<ContentAppId, string> = {
