@@ -61,7 +61,7 @@ class PushService : Service() {
     private var notifId = 100
 
     private val largeIcon: Bitmap? by lazy {
-        runCatching { BitmapFactory.decodeResource(resources, R.drawable.appicon) }.getOrNull()
+        runCatching { BitmapFactory.decodeResource(resources, R.drawable.ic_stat) }.getOrNull()
     }
     private var shellSubRegistered = false
 
