@@ -413,6 +413,8 @@ export function ChatSettingsPanel({
     const [editingAlias, setEditingAlias] = useState(false);
     const [editingBilingualPrompt, setEditingBilingualPrompt] = useState(false);
     const [editingCSS, setEditingCSS] = useState(false);
+    const [editingImagePrompt, setEditingImagePrompt] = useState(false);
+    const [customImagePromptDraft, setCustomImagePromptDraft] = useState(session.customImagePrompt || "");
     const [showScreenEffects, setShowScreenEffects] = useState(false);
     const [showSearch, setShowSearch] = useState(false);
     // TA 的电脑：翻看角色云端电脑（连接了角色电脑才显示入口）
@@ -1172,6 +1174,17 @@ export function ChatSettingsPanel({
                 {/* Advanced */}
                 <div className="menu-group">
                     <KeyboardAutoSendDebounceItem sessionId={session.id} />
+                    <button className="menu-item" onClick={() => { setCustomImagePromptDraft(session.customImagePrompt || ""); setEditingImagePrompt(true); }}>
+                        <ChatInfoIcon icon={ImageIcon} color={BINDING_ACCENTS.preset} />
+                        <div className="menu-label-group">
+                            <span className="menu-label">独立生图提示词</span>
+                            <span className="menu-desc">针对当前会话的专属外貌特征</span>
+                        </div>
+                        <div className="menu-right">
+                            {session.customImagePrompt && <span className="menu-desc mr-1">已设置</span>}
+                            <ChevronRight size={16} />
+                        </div>
+                    </button>
                     <button className="menu-item" onClick={() => setEditingCSS(true)}>
                         <ChatInfoIcon icon={Code} color={BINDING_ACCENTS.embedding} />
                         <div className="menu-label-group"><span className="menu-label">自定义 CSS 样式</span></div>
@@ -1497,6 +1510,32 @@ export function ChatSettingsPanel({
                     }}
                     onCancel={() => setShowConfirmDelete(false)}
                 />
+            )}
+
+            {/* Modal: Custom Image Prompt */}
+            {editingImagePrompt && (
+                <div className="modal-overlay">
+                    <div className="modal-dialog">
+                        <div className="ts-17 font-semibold text-center text-[var(--c-text)]">独立生图提示词</div>
+                        <p className="ts-13 text-[var(--c-icon)] mt-1 mb-3 text-center leading-relaxed">
+                            仅对当前会话生效。每次触发发图时，都会自动拼接到提示词中（适合填写该角色的固定外貌特征）。
+                        </p>
+                        <textarea
+                            className="ui-textarea"
+                            style={{ minHeight: 120, resize: "none" }}
+                            value={customImagePromptDraft}
+                            onChange={e => setCustomImagePromptDraft(e.target.value)}
+                            placeholder="例如：1girl, blonde hair, red eyes, school uniform..."
+                        />
+                        <div className="flex gap-3 w-full mt-3">
+                            <button onClick={() => setEditingImagePrompt(false)} className="ui-btn ui-btn-ghost flex-1">取消</button>
+                            <button onClick={() => {
+                                updateSession({ customImagePrompt: customImagePromptDraft });
+                                setEditingImagePrompt(false);
+                            }} className="ui-btn ui-btn-success flex-1">保存</button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Sub-page: Custom CSS */}

@@ -1,5 +1,5 @@
 import { saveChatImageToIndexedDB } from "./chat-asset-storage";
-import { syncChatGeneratedImagePromptText, updateChatMessage, type ChatMessage } from "./chat-storage";
+import { loadChatSessions, syncChatGeneratedImagePromptText, updateChatMessage, type ChatMessage } from "./chat-storage";
 import { generatedImageFilename, generateImageFromConfiguredApi } from "./image-generation-service";
 import { updateMomentPost } from "./moments-storage";
 import type { MomentPost } from "./moments-types";
@@ -64,11 +64,13 @@ export async function generateAndApplyChatGeneratedImage(
     }
 
     try {
+        const session = loadChatSessions().find(s => s.id === message.sessionId);
         const generated = await generateImageFromConfiguredApi({
             description,
             characterId,
             useReferenceImage: message.mediaData?.useReferenceImage === true,
             signal: options?.signal,
+            customImagePrompt: session?.customImagePrompt,
         });
         if (!generated) throw new Error("生图配置未启用或不完整");
 

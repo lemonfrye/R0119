@@ -48,6 +48,7 @@ export type ChatSession = {
     voiceBackground?: string;
     isBlacklisted?: boolean;
     customCSS?: string;
+    customImagePrompt?: string;
     isMuted?: boolean;
     bilingualTranslationEnabled?: boolean;
     collapseBilingualTranslation?: boolean;
