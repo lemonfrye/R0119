@@ -130,11 +130,36 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
     if (!model) return { status: 400, body: { error: "缺少模型名" } };
     if (!prompt) return { status: 400, body: { error: "缺少提示词" } };
 
-    const url = buildImageUrl(baseUrl, hasReference ? "edits" : "generations");
+    const isNovelAI = baseUrl.includes("novelai.net") || (model?.includes("nai-diffusion") ?? false) || (model?.includes("novelai") ?? false);
+    const url = isNovelAI 
+      ? baseUrl.trim().replace(/\/+$/, "") + "/ai/generate-image"
+      : buildImageUrl(baseUrl, hasReference ? "edits" : "generations");
+      
     const headers: Record<string, string> = { Authorization: `Bearer ${apiKey}` };
     let body: BodyInit;
 
-    if (hasReference) {
+    if (isNovelAI) {
+      headers["Content-Type"] = "application/json";
+      const width = input.size?.split("x")[0] ? parseInt(input.size.split("x")[0]) : 1024;
+      const height = input.size?.split("x")[1] ? parseInt(input.size.split("x")[1]) : 1024;
+
+      if (hasReference) {
+        const b64 = cleanBase64(input.referenceImageDataUrl || "").b64;
+        body = JSON.stringify({
+          input: prompt,
+          model,
+          action: "img2img",
+          parameters: { width, height, image: b64, n_samples: 1, strength: 0.7, noise: 0 }
+        });
+      } else {
+        body = JSON.stringify({
+          input: prompt,
+          model,
+          action: "generate",
+          parameters: { width, height, n_samples: 1 }
+        });
+      }
+    } else if (hasReference) {
       const converted = dataUrlToBlob(input.referenceImageDataUrl || "");
       if (!converted) return { status: 400, body: { error: "参考图格式无效" } };
       const form = new FormData();
@@ -172,6 +197,23 @@ async function runImageGeneration(input: ImageGenerationRequest): Promise<{ stat
     if (contentType.startsWith("image/")) {
       const buffer = Buffer.from(await res.arrayBuffer());
       return { status: 200, body: { b64: buffer.toString("base64"), mimeType: contentType } };
+    }
+
+    if (contentType.includes("zip") || contentType.includes("x-zip-compressed")) {
+      const buffer = await res.arrayBuffer();
+      try {
+        const JSZip = (await import("jszip")).default;
+        const zip = await JSZip.loadAsync(buffer);
+        const files = Object.keys(zip.files);
+        const imageFile = files.find(f => f.endsWith(".png") || f.endsWith(".jpg") || f.endsWith(".webp"));
+        if (imageFile) {
+          const imageBuffer = await zip.file(imageFile)!.async("nodebuffer");
+          return { status: 200, body: { b64: imageBuffer.toString("base64"), mimeType: "image/png" } };
+        }
+      } catch (e) {
+        // Fallback or error
+      }
+      return { status: 502, body: { error: "无法解析 NovelAI 返回的 ZIP 文件" } };
     }
 
     const json = await res.json();

@@ -38,6 +38,8 @@ const IMAGE_MODEL_HINTS = [
   "qwen-image",
   "kolors",
   "wan",
+  "nai",
+  "novelai",
 ];
 
 function mergePrompt(description: string, extraPrompt: string): string {
@@ -242,6 +244,26 @@ async function parseImageGenerationResponse(res: Response, signal?: AbortSignal)
     return { b64: cleaned.b64, mimeType: cleaned.mimeType || contentType };
   }
 
+  if (contentType.includes("zip") || contentType.includes("x-zip-compressed")) {
+    const arrayBuffer = await res.arrayBuffer();
+    throwIfAborted(signal);
+    try {
+      const JSZip = (await import("jszip")).default;
+      const zip = await JSZip.loadAsync(arrayBuffer);
+      const files = Object.keys(zip.files);
+      const imageFile = files.find(f => f.endsWith(".png") || f.endsWith(".jpg") || f.endsWith(".webp"));
+      if (imageFile) {
+        const imageBlob = await zip.file(imageFile)!.async("blob");
+        const dataUrl = await blobToDataUrl(imageBlob);
+        const cleaned = cleanBase64(dataUrl);
+        return { b64: cleaned.b64, mimeType: cleaned.mimeType || "image/png" };
+      }
+    } catch (e) {
+      // ignore and fallback
+    }
+    throw new Error("无法解析 NovelAI 返回的 ZIP 文件");
+  }
+
   const json = await res.json();
   throwIfAborted(signal);
   const extracted = extractFromObject(json);
@@ -321,12 +343,37 @@ async function generateImageDirect(params: {
   const { settings, prompt, referenceImageDataUrl, signal, proxyBaseUrl } = params;
   throwIfAborted(signal);
   const hasReference = Boolean(referenceImageDataUrl);
-  const url = buildImageUrl(proxyBaseUrl || settings.baseUrl, hasReference ? "edits" : "generations");
+  const isNovelAI = (proxyBaseUrl || settings.baseUrl).includes("novelai.net") || settings.model.includes("nai-diffusion") || settings.model.includes("novelai");
+  const url = isNovelAI 
+    ? (proxyBaseUrl || settings.baseUrl).trim().replace(/\/+$/, "") + "/ai/generate-image"
+    : buildImageUrl(proxyBaseUrl || settings.baseUrl, hasReference ? "edits" : "generations");
+    
   const headers: Record<string, string> = { Authorization: `Bearer ${settings.apiKey}` };
   if (proxyBaseUrl) headers["x-upstream-base-url"] = normalizeBaseUrl(settings.baseUrl);
   let body: BodyInit;
 
-  if (hasReference) {
+  if (isNovelAI) {
+    headers["Content-Type"] = "application/json";
+    const width = settings.size?.split("x")[0] ? parseInt(settings.size.split("x")[0]) : 1024;
+    const height = settings.size?.split("x")[1] ? parseInt(settings.size.split("x")[1]) : 1024;
+
+    if (hasReference) {
+      const b64 = cleanBase64(referenceImageDataUrl || "").b64;
+      body = JSON.stringify({
+        input: prompt,
+        model: settings.model,
+        action: "img2img",
+        parameters: { width, height, image: b64, n_samples: 1, strength: 0.7, noise: 0 }
+      });
+    } else {
+      body = JSON.stringify({
+        input: prompt,
+        model: settings.model,
+        action: "generate",
+        parameters: { width, height, n_samples: 1 }
+      });
+    }
+  } else if (hasReference) {
     const converted = dataUrlToBlob(referenceImageDataUrl || "");
     if (!converted) throw new Error("参考图格式无效");
     const form = new FormData();

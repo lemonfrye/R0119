@@ -19,7 +19,7 @@ import {
 import { Alert } from "@/components/ui/feedback";
 import { Input, Select, Textarea, Toggle } from "@/components/ui/form";
 
-const SIZE_OPTIONS = ["auto", "1024x1024", "1024x1536", "1536x1024"];
+const SIZE_OPTIONS = ["auto", "1024x1024", "1024x1536", "1536x1024", "832x1216", "1216x832"];
 const QUALITY_OPTIONS = ["auto", "low", "medium", "high"];
 
 // Some relay APIs (e.g. dzzi 的 gpt-image-2) ignore the `size` param and pick
@@ -31,6 +31,8 @@ const SIZE_RATIO_HINTS: Record<string, string> = {
     "1024x1024": "正方形 1:1 构图，square 1:1 composition",
     "1024x1536": "竖向 2:3 构图，vertical portrait composition",
     "1536x1024": "横向 3:2 构图，horizontal landscape composition",
+    "832x1216": "竖向 2:3 构图，vertical portrait composition",
+    "1216x832": "横向 3:2 构图，horizontal landscape composition",
 };
 
 // Remove any auto-appended ratio hint line(s), preserving the user's own text.
@@ -260,7 +262,7 @@ export function ImageGenerationSettings() {
                                 type="text"
                                 value={settings.model}
                                 onChange={(event) => updateSettings({ model: event.target.value })}
-                                placeholder="gpt-image-2 / image2 / chatgpt-image-latest"
+                                placeholder="gpt-image-2 / nai-diffusion-3 / image2"
                                 className={likelyModels.length > 0 ? "w-full pr-9" : "w-full"}
                             />
                             {likelyModels.length > 0 && (
