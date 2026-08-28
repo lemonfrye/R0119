@@ -248,6 +248,8 @@ export type BindingConfig = {
     qaApiConfigId?: string;
     /** Auxiliary API: used to translate reasoning/chain-of-thought text (global, not per-character) */
     reasoningTranslateApiConfigId?: string;
+    /** Auxiliary API: used by the cocreate app */
+    cocreateApiConfigId?: string;
 };
 
 // --- Chat Toolbox ---

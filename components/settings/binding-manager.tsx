@@ -67,7 +67,7 @@ type Level = "global" | "character" | "app";
 type SingleBindingField = "apiConfigId" | "voiceConfigId" | "presetId" | "userIdentityId";
 type MultiBindingField = "worldBookIds" | "regexIds";
 type BindingField = SingleBindingField | MultiBindingField;
-type AuxBindingField = "memorySummaryApiConfigId" | "embeddingApiConfigId" | "mascotApiConfigId" | "reasoningTranslateApiConfigId" | "qaApiConfigId";
+type AuxBindingField = "memorySummaryApiConfigId" | "embeddingApiConfigId" | "mascotApiConfigId" | "reasoningTranslateApiConfigId" | "qaApiConfigId" | "cocreateApiConfigId";
 
 const BINDING_FIELD_VISUALS: Record<BindingField, { icon: LucideIcon; color: string }> = {
     apiConfigId: { icon: Code2, color: BINDING_ACCENTS.api },
@@ -84,6 +84,7 @@ const AUX_FIELD_VISUALS: Record<AuxBindingField, { icon: LucideIcon; color: stri
     mascotApiConfigId: { icon: Code2, color: BINDING_ACCENTS.api },
     reasoningTranslateApiConfigId: { icon: Languages, color: BINDING_ACCENTS.voice },
     qaApiConfigId: { icon: Wrench, color: BINDING_ACCENTS.api },
+    cocreateApiConfigId: { icon: Code2, color: CONTENT_APP_ACCENTS.cocreate },
 };
 
 const APP_OVERRIDE_COLORS: Record<string, string> = CONTENT_APP_ACCENTS;
@@ -239,6 +240,10 @@ export function BindingManager() {
             }
             if (prev.qaApiConfigId && !validSets.api.has(prev.qaApiConfigId)) {
                 next.qaApiConfigId = undefined;
+                dirty = true;
+            }
+            if (prev.cocreateApiConfigId && !validSets.api.has(prev.cocreateApiConfigId)) {
+                next.cocreateApiConfigId = undefined;
                 dirty = true;
             }
             if (dirty) {
@@ -449,6 +454,7 @@ export function BindingManager() {
             case "mascotApiConfigId": return "用于小卷对话与工具调用";
             case "reasoningTranslateApiConfigId": return "用于翻译思考过程（思维链）内容";
             case "qaApiConfigId": return "用于工坊答疑、诊断与内容开发";
+            case "cocreateApiConfigId": return "用于共创应用的文本生成";
         }
     };
 
@@ -459,6 +465,7 @@ export function BindingManager() {
             case "mascotApiConfigId": return "小卷助手 API";
             case "reasoningTranslateApiConfigId": return "思维链翻译 API";
             case "qaApiConfigId": return "工坊 API";
+            case "cocreateApiConfigId": return "共创 API";
         }
     };
 
@@ -987,6 +994,7 @@ export function BindingManager() {
                             {renderAuxSelect("mascotApiConfigId", "小卷助手 API")}
                             {renderAuxSelect("qaApiConfigId", "工坊 API")}
                             {renderAuxSelect("reasoningTranslateApiConfigId", "思维链翻译 API")}
+                            {renderAuxSelect("cocreateApiConfigId", "共创 API")}
                         </div>
                     </section>
                 </>
