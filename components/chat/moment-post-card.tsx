@@ -59,32 +59,25 @@ export function MomentPostCard({ post, onUpdate, onRequestDelete, onOpenCommentC
     const [deleteCommentTarget, setDeleteCommentTarget] = useState<MomentComment | null>(null);
 
     // Resolve asset:// photo URLs from IndexedDB
-    const [resolvedPhotoUrls, setResolvedPhotoUrls] = useState<string[]>([]);
-    
+    const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState<string | null>(null);
     useEffect(() => {
         let cancelled = false;
-        setResolvedPhotoUrls([]);
+        setResolvedPhotoUrl(null);
 
-        const urlsToResolve = post.photoUrls?.length ? post.photoUrls : (post.photoUrl ? [post.photoUrl] : []);
-        
-        Promise.all(urlsToResolve.map(async (url) => {
-            if (url.startsWith("asset://")) {
-                const assetId = url.slice(8);
-                const localUrl = await getChatImageFromIndexedDB(assetId);
-                return localUrl || null;
-            }
-            return url;
-        })).then(resolved => {
-            if (cancelled) return;
-            setResolvedPhotoUrls(resolved.filter(Boolean) as string[]);
-        });
+        if (post.photoUrl?.startsWith("asset://")) {
+            const assetId = post.photoUrl.slice(8);
+            getChatImageFromIndexedDB(assetId).then(url => {
+                if (cancelled) return;
+                setResolvedPhotoUrl(url || null);
+            });
+        } else {
+            setResolvedPhotoUrl(post.photoUrl || null);
+        }
 
         return () => {
             cancelled = true;
         };
-    }, [post.photoUrl, post.photoUrls]);
-
-    const resolvedPhotoUrl = resolvedPhotoUrls[0] || null; // For fallback references
+    }, [post.photoUrl]);
 
     const chars = loadCharacters();
     // 角色帖子下，用户名用该角色绑定的用户人设；用户自己的帖子用默认人设
@@ -348,45 +341,21 @@ export function MomentPostCard({ post, onUpdate, onRequestDelete, onOpenCommentC
             {/* Photo area —— 四块内容全无时整个容器不渲染：空壳会照样吃掉自己的下边距
                 （flex 容器不会自塌陷），无配图的帖子正文和时间行之间就凭空多出一截，看着像空了一行。
                 间距用 mb-3 与卡片其余部分（头像行/正文/位置）对齐，media 原本的 mb-5 是全卡唯一的孤例。 */}
-            {(resolvedPhotoUrls.length > 0 || fallbackPhotoDescription) && (
+            {(resolvedPhotoUrl || fallbackPhotoDescription) && (
             <div className="feed-post-media mb-3 w-full flex flex-col gap-2">
-                {resolvedPhotoUrls.length > 0 && (
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: resolvedPhotoUrls.length === 1 ? '1fr' : resolvedPhotoUrls.length === 2 || resolvedPhotoUrls.length === 4 ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
-                        gap: '4px',
-                        maxWidth: resolvedPhotoUrls.length === 1 ? '80%' : '100%'
-                    }}>
-                        <style>{`
-                            .feed-grid-multi-image .chat-media-file-wrap,
-                            .feed-grid-multi-image .chat-media-file-card,
-                            .feed-grid-multi-image img {
-                                width: 100% !important;
-                                height: 100% !important;
-                                max-width: none !important;
-                                max-height: none !important;
-                                object-fit: cover !important;
-                                margin: 0 !important;
-                                border-radius: 0 !important;
-                            }
-                        `}</style>
-                        {resolvedPhotoUrls.map((url, i) => (
-                            <div key={i} className={resolvedPhotoUrls.length > 1 ? "feed-grid-multi-image" : ""} style={{ position: 'relative', aspectRatio: resolvedPhotoUrls.length === 1 ? 'auto' : '1/1', overflow: 'hidden', borderRadius: '4px' }}>
-                                <MediaImageWithPreview
-                                    url={url}
-                                    title=""
-                                    filename={`moment-${post.id}-${i}.png`}
-                                    onError={() => {
-                                        setResolvedPhotoUrls(prev => prev.filter((_, idx) => idx !== i));
-                                    }}
-                                    onRegenerate={i === 0 && canRegeneratePhoto ? openPhotoPromptEditor : undefined}
-                                    regenerating={photoRegenerating}
-                                />
-                            </div>
-                        ))}
-                    </div>
+                {resolvedPhotoUrl && (
+                    <MediaImageWithPreview
+                        url={resolvedPhotoUrl}
+                        title=""
+                        filename={`moment-${post.id}.png`}
+                        onError={() => {
+                            setResolvedPhotoUrl(null);
+                        }}
+                        onRegenerate={canRegeneratePhoto ? openPhotoPromptEditor : undefined}
+                        regenerating={photoRegenerating}
+                    />
                 )}
-                {resolvedPhotoUrls.length > 0 && post.photoGenerationStatus === "pending" && (
+                {resolvedPhotoUrl && post.photoGenerationStatus === "pending" && (
                     <div className="ts-12 text-[var(--c-icon)] opacity-80">图片重新生成中…</div>
                 )}
                 {fallbackPhotoDescription && (
