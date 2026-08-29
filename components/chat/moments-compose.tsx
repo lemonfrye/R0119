@@ -235,20 +235,21 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
                     />
 
                     {/* Photo block */}
-                    <div className="compose-media-grid" style={{
+                    <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3, 1fr)',
                         gap: '8px',
-                        marginTop: '12px'
+                        marginTop: '12px',
+                        width: '100%'
                     }}>
                         {photoPreviews.map((preview, index) => (
-                            <div key={index} className="compose-photo-block-preview" style={{ position: 'relative', aspectRatio: '1/1' }}>
-                                <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
-                                <button onClick={() => handleRemovePhoto(index)} className="ui-close-sm compose-photo-remove" style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14 }}>×</button>
+                            <div key={index} style={{ position: 'relative', width: '100%', aspectRatio: '1/1' }}>
+                                <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                                <button onClick={() => handleRemovePhoto(index)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14, zIndex: 2 }}>×</button>
                             </div>
                         ))}
                         {photoPreviews.length < 9 && (
-                            <button onClick={handleImageSelect} className="compose-photo-block" style={{ width: '100%', aspectRatio: '1/1', background: 'var(--c-input)', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--c-icon)' }}>
+                            <button type="button" onClick={handleImageSelect} style={{ width: '100%', aspectRatio: '1/1', background: 'var(--c-input)', border: 'none', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--c-icon)', padding: 0, margin: 0 }}>
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                     <line x1="12" y1="5" x2="12" y2="19" />
                                     <line x1="5" y1="12" x2="19" y2="12" />
