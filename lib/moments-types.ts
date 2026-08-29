@@ -7,6 +7,7 @@ export type MomentPost = {
     authorId: string;               // characterId or "user"
     content: string;
     photoUrl?: string;              // user-uploaded base64 image
+    photoUrls?: string[];           // support multiple images
     photoDescription?: string;      // AI-generated photo description (for placeholder rendering)
     photoUseReferenceImage?: boolean; // AI-generated photo should use character reference image
     photoGenerationStatus?: "pending" | "failed" | "generated";

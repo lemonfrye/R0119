@@ -59,25 +59,34 @@ export function MomentPostCard({ post, onUpdate, onRequestDelete, onOpenCommentC
     const [deleteCommentTarget, setDeleteCommentTarget] = useState<MomentComment | null>(null);
 
     // Resolve asset:// photo URLs from IndexedDB
-    const [resolvedPhotoUrl, setResolvedPhotoUrl] = useState<string | null>(null);
+    const [resolvedPhotoUrls, setResolvedPhotoUrls] = useState<string[]>([]);
+    
     useEffect(() => {
         let cancelled = false;
-        setResolvedPhotoUrl(null);
+        setResolvedPhotoUrls([]);
 
-        if (post.photoUrl?.startsWith("asset://")) {
-            const assetId = post.photoUrl.slice(8);
-            getChatImageFromIndexedDB(assetId).then(url => {
-                if (cancelled) return;
-                setResolvedPhotoUrl(url || null);
-            });
-        } else {
-            setResolvedPhotoUrl(post.photoUrl || null);
-        }
+        const urlsToResolve = post.photoUrls && post.photoUrls.length > 0 
+            ? post.photoUrls 
+            : (post.photoUrl ? [post.photoUrl] : []);
+
+        Promise.all(urlsToResolve.map(async (url) => {
+            if (url.startsWith("asset://")) {
+                const assetId = url.slice(8);
+                const resolvedUrl = await getChatImageFromIndexedDB(assetId);
+                return resolvedUrl || url;
+            }
+            return url;
+        })).then(resolvedUrls => {
+            if (cancelled) return;
+            setResolvedPhotoUrls(resolvedUrls.filter(Boolean) as string[]);
+        });
 
         return () => {
             cancelled = true;
         };
-    }, [post.photoUrl]);
+    }, [post.photoUrl, post.photoUrls]);
+    
+    const resolvedPhotoUrl = resolvedPhotoUrls.length > 0 ? resolvedPhotoUrls[0] : null;
 
     const chars = loadCharacters();
     // 角色帖子下，用户名用该角色绑定的用户人设；用户自己的帖子用默认人设
@@ -341,19 +350,24 @@ export function MomentPostCard({ post, onUpdate, onRequestDelete, onOpenCommentC
             {/* Photo area —— 四块内容全无时整个容器不渲染：空壳会照样吃掉自己的下边距
                 （flex 容器不会自塌陷），无配图的帖子正文和时间行之间就凭空多出一截，看着像空了一行。
                 间距用 mb-3 与卡片其余部分（头像行/正文/位置）对齐，media 原本的 mb-5 是全卡唯一的孤例。 */}
-            {(resolvedPhotoUrl || fallbackPhotoDescription) && (
+            {(resolvedPhotoUrls.length > 0 || fallbackPhotoDescription) && (
             <div className="feed-post-media mb-3 w-full flex flex-col gap-2">
-                {resolvedPhotoUrl && (
-                    <MediaImageWithPreview
-                        url={resolvedPhotoUrl}
-                        title=""
-                        filename={`moment-${post.id}.png`}
-                        onError={() => {
-                            setResolvedPhotoUrl(null);
-                        }}
-                        onRegenerate={canRegeneratePhoto ? openPhotoPromptEditor : undefined}
-                        regenerating={photoRegenerating}
-                    />
+                {resolvedPhotoUrls.length > 0 && (
+                    <div className={`grid gap-1 ${resolvedPhotoUrls.length === 1 ? 'w-full sm:w-2/3' : resolvedPhotoUrls.length === 2 || resolvedPhotoUrls.length === 4 ? 'grid-cols-2 w-full sm:w-[80%]' : 'grid-cols-3 w-full sm:w-[85%]'}`}>
+                        {resolvedPhotoUrls.map((url, idx) => (
+                            <MediaImageWithPreview
+                                key={idx}
+                                url={url}
+                                title=""
+                                filename={`moment-${post.id}-${idx}.png`}
+                                onError={() => {
+                                    // Not dynamically removing single image on error in multi-image view for simplicity
+                                }}
+                                onRegenerate={idx === 0 && canRegeneratePhoto ? openPhotoPromptEditor : undefined}
+                                regenerating={idx === 0 ? photoRegenerating : false}
+                            />
+                        ))}
+                    </div>
                 )}
                 {resolvedPhotoUrl && post.photoGenerationStatus === "pending" && (
                     <div className="ts-12 text-[var(--c-icon)] opacity-80">图片重新生成中…</div>
