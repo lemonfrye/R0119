@@ -83,6 +83,7 @@ import {
   readBridgeStateSnapshot,
   sanitizeBridgeDataKey,
 } from "./reality-bridge/storage";
+import { loadCoCreateLibrary } from "./cocreate-storage";
 
 const CUSTOM_APP_NOTIFICATIONS_KEY = "ai_phone_custom_app_notifications_v1";
 const CUSTOM_APP_BADGES_KEY = "ai_phone_custom_app_badges_v1";
@@ -2099,6 +2100,57 @@ export async function generateCustomAppGroupText(app: InstalledCustomApp, record
     appendMessages: serializedMessages,
     messages: serializedMessages,
   };
+}
+
+// 只读读取「共创」作品库：把每个共创 session 当作一部作品返回（书名、简介、
+// 章节正文、拼好的全书正文、参演角色）。仅读，不改共创数据。传 sessionId 只取一部。
+export function readCustomAppCoCreate(record: Record<string, unknown>): {
+  sessions: Record<string, unknown>[];
+} {
+  const library = loadCoCreateLibrary();
+  const onlyId = cleanText(record.sessionId ?? record.id, 160);
+  const includeContent = record.includeContent !== false;
+  const sessions = (library.sessions ?? [])
+    .filter(session => !onlyId || session.id === onlyId)
+    .map(session => {
+      const chapters = (session.chapters ?? []).map(chapter => ({
+        id: chapter.id,
+        num: chapter.num,
+        title: chapter.title,
+        titleEn: chapter.titleEn,
+        words: chapter.words,
+        summary: chapter.summary,
+        content: includeContent ? (chapter.content ?? "") : undefined,
+      }));
+      const fullText = includeContent
+        ? chapters
+          .map(ch => {
+            const heading = ch.title && ch.title !== "未命名章节" ? ch.title : `第${ch.num}章`;
+            return `${heading}\n${ch.content ?? ""}`.trim();
+          })
+          .filter(Boolean)
+          .join("\n\n")
+        : undefined;
+      return {
+        id: session.id,
+        title: session.title,
+        subtitle: session.subtitle,
+        partnerCharacterId: session.partnerCharacterId,
+        cast: (session.cast ?? []).map(member => ({
+          id: member.id,
+          name: member.name,
+          role: member.role,
+          desc: member.desc,
+        })),
+        chapters,
+        chapterCount: chapters.length,
+        wordCount: chapters.reduce((sum, ch) => sum + (Number(ch.words) || 0), 0),
+        fullText,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+      };
+    });
+  return { sessions };
 }
 
 export async function readCustomAppCoreMemory(record: Record<string, unknown>): Promise<{

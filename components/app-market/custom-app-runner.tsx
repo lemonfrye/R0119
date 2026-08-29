@@ -50,6 +50,7 @@ import {
   payCustomAppWallet,
   readCustomAppBridgeState,
   readCustomAppCalendar,
+  readCustomAppCoCreate,
   readCustomAppChatHistory,
   readCustomAppCharacterRelations,
   readCustomAppCharacterState,
@@ -403,6 +404,10 @@ html, body { min-height: 100%; }
       update: function(payload){ return request('world.write', Object.assign({}, payload || {}, { operation: 'upsert' })); },
       delete: function(payload){ return request('world.write', Object.assign({}, payload || {}, { operation: 'delete' })); },
       activate: function(payload){ return request('world.activate', payload || {}); }
+    },
+    cocreate: {
+      list: function(payload){ return request('cocreate.list', payload || {}); },
+      get: function(sessionId){ return request('cocreate.list', { sessionId: sessionId }); }
     },
     media: {
       pick: function(payload){ return request('media.pick', payload || {}); },
@@ -1551,6 +1556,11 @@ export function CustomAppRunner({
     if (action === "world.activate") {
       requirePermission("world.activate");
       return activateCustomAppWorld(app, record);
+    }
+
+    if (action === "cocreate.list") {
+      requirePermission("cocreate.read");
+      return readCustomAppCoCreate(record);
     }
 
     if (action === "media.pick") {

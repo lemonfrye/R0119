@@ -253,6 +253,7 @@ function normalizePermission(value: unknown): CustomAppPermission | null {
     "world.read",
     "world.write",
     "world.activate",
+    "cocreate.read",
     "memory.readCore",
     "memory.readLongTerm",
     "memory.readShortTerm",

@@ -37,6 +37,7 @@ export type CustomAppPermission =
   | "world.read"
   | "world.write"
   | "world.activate"
+  | "cocreate.read"
   | "memory.readCore"
   | "memory.readLongTerm"
   | "memory.readShortTerm"

@@ -38,6 +38,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
   "world.read": "读取世界书",
   "world.write": "写入世界书",
   "world.activate": "启停世界书条目",
+  "cocreate.read": "读取共创作品（只读）",
   "memory.readCore": "读取核心记忆",
   "memory.readLongTerm": "读取长期记忆",
   "memory.readShortTerm": "读取短期记忆",
