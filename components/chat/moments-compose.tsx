@@ -18,6 +18,8 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
     const [text, setText] = useState("");
     const [photos, setPhotos] = useState<{ assetId: string | null; preview: string }[]>([]);
     const [photoDesc, setPhotoDesc] = useState("");
+    const [isProcessingPhotos, setIsProcessingPhotos] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
     const [location, setLocation] = useState("");
     const [locationDraft, setLocationDraft] = useState("");
     const [mentionIds, setMentionIds] = useState<Set<string>>(new Set());
@@ -86,58 +88,65 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
 
     const handleImageSelect = () => fileRef.current?.click();
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = Array.from(e.target.files || []);
-        if (files.length === 0) return;
-        
-        const newPhotos: { assetId: string | null; preview: string }[] = [];
-        for (const file of files) {
-            if (photos.length + newPhotos.length >= 9) break;
-            const preview = URL.createObjectURL(file);
-            newPhotos.push({ assetId: null, preview });
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFiles = Array.from(e.target.files || []);
+        if (selectedFiles.length === 0) return;
+
+        const existingCount = photos.length;
+        const files = selectedFiles.slice(0, Math.max(0, 9 - existingCount));
+        if (files.length === 0) {
+            e.target.value = "";
+            return;
         }
-        
-        // Optimistically show previews
+
+        const newPhotos = files.map(file => ({
+            assetId: null as string | null,
+            preview: URL.createObjectURL(file),
+        }));
         setPhotos(prev => [...prev, ...newPhotos]);
-        
-        // Process each image in background
-        for (let i = 0; i < files.length && photos.length + i < 9; i++) {
-            const file = files[i];
-            const img = new Image();
+        setIsProcessingPhotos(true);
+        e.target.value = "";
+
+        const processing = Promise.all(files.map((file, index) => new Promise<void>(resolve => {
             const objectUrl = URL.createObjectURL(file);
+            const img = new Image();
             img.onload = () => {
-                const canvas = document.createElement("canvas");
                 const maxSize = 800;
-                let w = img.width, h = img.height;
+                let w = img.width;
+                let h = img.height;
                 if (w > maxSize || h > maxSize) {
                     if (w > h) { h = Math.round((h / w) * maxSize); w = maxSize; }
                     else { w = Math.round((w / h) * maxSize); h = maxSize; }
                 }
+                const canvas = document.createElement("canvas");
                 canvas.width = w;
                 canvas.height = h;
                 const ctx = canvas.getContext("2d");
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0, w, h);
-                    canvas.toBlob(blob => {
-                        URL.revokeObjectURL(objectUrl);
-                        if (blob) {
-                            saveChatImageToIndexedDB(blob).then(assetId => {
-                                setPhotos(prev => {
-                                    const next = [...prev];
-                                    const targetIndex = prev.findIndex(p => p.preview === newPhotos[i].preview);
-                                    if (targetIndex !== -1) {
-                                        next[targetIndex] = { ...next[targetIndex], assetId };
-                                    }
-                                    return next;
-                                });
-                            });
-                        }
-                    }, "image/jpeg", 0.8);
+                if (!ctx) {
+                    URL.revokeObjectURL(objectUrl);
+                    resolve();
+                    return;
                 }
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(blob => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (!blob) {
+                        resolve();
+                        return;
+                    }
+                    saveChatImageToIndexedDB(blob).then(assetId => {
+                        setPhotos(prev => prev.map(photo => photo.preview === newPhotos[index].preview
+                            ? { ...photo, assetId }
+                            : photo));
+                    }).catch(() => {}).finally(resolve);
+                }, "image/jpeg", 0.8);
+            };
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve();
             };
             img.src = objectUrl;
-        }
-        e.target.value = "";
+        }))).finally(() => setIsProcessingPhotos(false));
     };
 
     const handleRemovePhoto = (index: number) => {
@@ -173,8 +182,9 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
         });
     };
 
-    const handlePublish = () => {
-        if (!canPublish) return;
+    const handlePublish = async () => {
+        if (!canPublish || isProcessingPhotos || isPublishing) return;
+        setIsPublishing(true);
 
         // Build content with @mentions appended
         let content = text.trim();
@@ -207,6 +217,7 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
         if (post) {
             try { onUserPost(post); } catch (e) { console.warn("[Compose] onUserPost error:", e); }
         }
+        setIsPublishing(false);
         onPublished();
     };
 
@@ -232,7 +243,7 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
                         </svg>
                     </button>
                     <span className="compose-modal-title">发朋友圈</span>
-                    <button onClick={handlePublish} disabled={!canPublish} className="compose-header-icon compose-header-send" aria-label="发表">
+                    <button onClick={handlePublish} disabled={!canPublish || isProcessingPhotos || isPublishing} className="compose-header-icon compose-header-send" aria-label={isProcessingPhotos ? "图片处理中" : isPublishing ? "发表中" : "发表"} title={isProcessingPhotos ? "图片处理中" : isPublishing ? "发表中" : "发表"}>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                             <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
                         </svg>
