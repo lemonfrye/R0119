@@ -16,8 +16,8 @@ type Props = {
 
 export function MomentsCompose({ onClose, onPublished }: Props) {
     const [text, setText] = useState("");
-    const [photoAssetId, setPhotoAssetId] = useState<string | null>(null);
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [photoAssetIds, setPhotoAssetIds] = useState<string[]>([]);
+    const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
     const [photoDesc, setPhotoDesc] = useState("");
     const [location, setLocation] = useState("");
     const [locationDraft, setLocationDraft] = useState("");
@@ -88,43 +88,55 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
     const handleImageSelect = () => fileRef.current?.click();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const img = new Image();
-        const objectUrl = URL.createObjectURL(file);
-        img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const maxSize = 800;
-            let w = img.width, h = img.height;
-            if (w > maxSize || h > maxSize) {
-                if (w > h) { h = Math.round((h / w) * maxSize); w = maxSize; }
-                else { w = Math.round((w / h) * maxSize); h = maxSize; }
-            }
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) return;
-            ctx.drawImage(img, 0, 0, w, h);
-            canvas.toBlob(blob => {
-                URL.revokeObjectURL(objectUrl);
-                if (!blob) return;
-                // Preview from blob URL (no localStorage cost)
-                setPhotoPreview(URL.createObjectURL(blob));
-                // Persist to IndexedDB
-                saveChatImageToIndexedDB(blob).then(assetId => {
-                    setPhotoAssetId(assetId);
-                });
-            }, "image/jpeg", 0.8);
-        };
-        img.src = objectUrl;
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+        
+        files.forEach(file => {
+            const img = new Image();
+            const objectUrl = URL.createObjectURL(file);
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const maxSize = 800;
+                let w = img.width, h = img.height;
+                if (w > maxSize || h > maxSize) {
+                    if (w > h) { h = Math.round((h / w) * maxSize); w = maxSize; }
+                    else { w = Math.round((w / h) * maxSize); h = maxSize; }
+                }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext("2d");
+                if (!ctx) return;
+                ctx.drawImage(img, 0, 0, w, h);
+                canvas.toBlob(blob => {
+                    URL.revokeObjectURL(objectUrl);
+                    if (!blob) return;
+                    // Preview from blob URL (no localStorage cost)
+                    const previewUrl = URL.createObjectURL(blob);
+                    setPhotoPreviews(prev => [...prev, previewUrl].slice(0, 9));
+                    // Persist to IndexedDB
+                    saveChatImageToIndexedDB(blob).then(assetId => {
+                        setPhotoAssetIds(prev => [...prev, assetId].slice(0, 9));
+                    });
+                }, "image/jpeg", 0.8);
+            };
+            img.src = objectUrl;
+        });
         e.target.value = "";
     };
 
-    const handleRemovePhoto = () => {
-        if (photoPreview) URL.revokeObjectURL(photoPreview);
-        setPhotoAssetId(null);
-        setPhotoPreview(null);
-        setPhotoDesc("");
+    const handleRemovePhoto = (index: number) => {
+        setPhotoPreviews(prev => {
+            const next = [...prev];
+            const removed = next.splice(index, 1)[0];
+            if (removed) URL.revokeObjectURL(removed);
+            return next;
+        });
+        setPhotoAssetIds(prev => {
+            const next = [...prev];
+            next.splice(index, 1);
+            return next;
+        });
+        if (photoPreviews.length <= 1) setPhotoDesc("");
         if (fileRef.current) fileRef.current.value = "";
     };
 
@@ -170,7 +182,8 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
             authorType: "user",
             authorId: "user",
             content,
-            photoUrl: photoAssetId ? `asset://${photoAssetId}` : undefined,
+            photoUrl: photoAssetIds.length > 0 ? `asset://${photoAssetIds[0]}` : undefined,
+            photoUrls: photoAssetIds.length > 0 ? photoAssetIds.map(id => `asset://${id}`) : undefined,
             photoDescription: photoDesc.trim() || undefined,
             visibility: visibleCharIds,
             location: location || undefined,
@@ -222,14 +235,20 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
                     />
 
                     {/* Photo block */}
-                    <div className="compose-media-grid">
-                        {photoPreview ? (
-                            <div className="compose-photo-block-preview">
-                                <img src={photoPreview} alt="" />
-                                <button onClick={handleRemovePhoto} className="ui-close-sm compose-photo-remove">×</button>
+                    <div className="compose-media-grid" style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, 1fr)',
+                        gap: '8px',
+                        marginTop: '12px'
+                    }}>
+                        {photoPreviews.map((preview, index) => (
+                            <div key={index} className="compose-photo-block-preview" style={{ position: 'relative', aspectRatio: '1/1' }}>
+                                <img src={preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} />
+                                <button onClick={() => handleRemovePhoto(index)} className="ui-close-sm compose-photo-remove" style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: '50%', width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 14 }}>×</button>
                             </div>
-                        ) : (
-                            <button onClick={handleImageSelect} className="compose-photo-block">
+                        ))}
+                        {photoPreviews.length < 9 && (
+                            <button onClick={handleImageSelect} className="compose-photo-block" style={{ width: '100%', aspectRatio: '1/1', background: 'var(--c-input)', border: 'none', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--c-icon)' }}>
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                                     <line x1="12" y1="5" x2="12" y2="19" />
                                     <line x1="5" y1="12" x2="19" y2="12" />
@@ -237,7 +256,7 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
                             </button>
                         )}
                     </div>
-                    {!photoPreview && (
+                    {photoPreviews.length === 0 && (
                         <input
                             value={photoDesc || ""}
                             onChange={e => setPhotoDesc(e.target.value)}
@@ -246,7 +265,7 @@ export function MomentsCompose({ onClose, onPublished }: Props) {
                             style={{ display: 'none' }} // Assuming mostly image flows for real, hidden to keep UI clean unless needed
                         />
                     )}
-                    <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                    <input ref={fileRef} type="file" accept="image/*" multiple onChange={handleFileChange} className="hidden" style={{ display: 'none' }} />
                 </div>
 
                 {/* ── Action Rows (Location, Mention, Visibility) ── */}

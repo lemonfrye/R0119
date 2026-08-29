@@ -1317,7 +1317,7 @@ function buildMomentUiSnapshot(
     parts.push(`发帖人：${authorName}`);
     parts.push(`正文：${post.content}`);
     if (post.location) parts.push(`地点：${post.location}`);
-    if (post.photoUrl) parts.push("配图：见附图");
+    if (post.photoUrls?.length || post.photoUrl) parts.push("配图：见附图");
     else if (post.photoDescription) parts.push(`配图：${post.photoDescription}`);
     const likes = characterId
         ? getVisibleMomentLikesForCharacter(post, characterId, post.likes)
@@ -1361,16 +1361,24 @@ function buildMomentUiSnapshot(
     return parts.join("\n");
 }
 
-async function resolveMomentPhotoForVision(post: MomentPost): Promise<string | null> {
-    const photoUrl = post.photoUrl?.trim();
-    if (!photoUrl) return null;
-    if (!photoUrl.startsWith("asset://")) return photoUrl;
-
-    try {
-        return await getChatImageFromIndexedDB(photoUrl.slice(8));
-    } catch {
-        return null;
+async function resolveMomentPhotoForVision(post: MomentPost): Promise<string[] | null> {
+    const urls = post.photoUrls?.length ? post.photoUrls : (post.photoUrl ? [post.photoUrl] : []);
+    if (!urls.length) return null;
+    
+    const resolvedUrls: string[] = [];
+    for (const url of urls) {
+        if (!url.startsWith("asset://")) {
+            resolvedUrls.push(url);
+        } else {
+            try {
+                const localUrl = await getChatImageFromIndexedDB(url.slice(8));
+                if (localUrl) resolvedUrls.push(localUrl);
+            } catch {
+                // ignore
+            }
+        }
     }
+    return resolvedUrls.length > 0 ? resolvedUrls : null;
 }
 
 async function buildMomentSnapshotMessage(
@@ -1388,11 +1396,11 @@ async function buildMomentSnapshotMessage(
     const text = options?.prefixLines?.length
         ? [...options.prefixLines, snapshot].join("\n")
         : snapshot;
-    const imageUrl = apiConfig?.enableImageRecognition
+    const imageUrls = apiConfig?.enableImageRecognition
         ? await resolveMomentPhotoForVision(post)
         : null;
 
-    if (!imageUrl) {
+    if (!imageUrls || imageUrls.length === 0) {
         return {
             role: "user",
             content: text,
@@ -1404,8 +1412,8 @@ async function buildMomentSnapshotMessage(
         role: "user",
         content: [
             { type: "text", text },
-            { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
-        ],
+            ...imageUrls.map(url => ({ type: "image_url", image_url: { url, detail: "low" } as const })),
+        ] as any, // Type cast to any because LLMMessage might not be fully typed for arrays of images
         _debugMeta: { marker },
     };
 }
